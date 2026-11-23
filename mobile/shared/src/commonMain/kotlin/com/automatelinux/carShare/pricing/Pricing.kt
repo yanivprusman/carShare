@@ -27,22 +27,23 @@ object Rates {
     // GoTo weekend surcharge (Thu 23:00 – Sat 23:00).
     const val GOTO_WEEKEND_HOUR = 4.0
     const val GOTO_WEEKEND_DAY = 40.0
+
+    // Tel Aviv traffic, about 20 km/h: how much of an in-town trip is spent driving.
+    const val CITY_MINUTES_PER_KM = 3
 }
 
 enum class Company { AUTOTEL, GOTO }
 
 enum class Plan(
     val company: Company,
-    val label: String,
     val monthlyFee: Double,
-    val note: String,
-    /** How the face-off names the plan under the company name. */
+    /** What the face-off prints under the price. */
     val short: String,
 ) {
-    AT_HIGH(Company.AUTOTEL, "AutoTel ₪40", 40.0, "₪1.5/min driving · ₪0.75 parked", "on the ₪40 plan"),
-    AT_LOW(Company.AUTOTEL, "AutoTel ₪10", 10.0, "₪2/min driving · ₪1 parked", "on the ₪10 plan"),
-    GO_DRIVE(Company.GOTO, "GoTo DRIVE", 50.0, "Lower hourly rate · ₪50 a month", "on the DRIVE plan"),
-    GO_LITE(Company.GOTO, "GoTo LITE", 20.0, "Higher hourly rate · ₪20 a month", "on the LITE plan"),
+    AT_HIGH(Company.AUTOTEL, 40.0, "₪40 plan"),
+    AT_LOW(Company.AUTOTEL, 10.0, "₪10 plan"),
+    GO_DRIVE(Company.GOTO, 50.0, "DRIVE plan"),
+    GO_LITE(Company.GOTO, 20.0, "LITE plan"),
 }
 
 enum class GoToCar(
@@ -59,7 +60,6 @@ enum class GoToCar(
 
 data class Trip(
     val totalMinutes: Int,
-    val drivingMinutes: Int,
     val km: Int,
     val oneWay: Boolean,
     val leavesTelAviv: Boolean,
@@ -68,6 +68,12 @@ data class Trip(
     /** 0 = leave monthly fees out; otherwise the fee is split over this many trips. */
     val tripsPerMonth: Int,
 ) {
+    /**
+     * Only AutoTel's in-town per-minute price needs this, so it is worked out rather than asked:
+     * a one-way trip is all driving; otherwise the distance at city speed, and the rest is parked.
+     */
+    val drivingMinutes: Int
+        get() = if (oneWay) totalMinutes else min(totalMinutes, km * Rates.CITY_MINUTES_PER_KM)
     val parkedMinutes: Int get() = max(0, totalMinutes - drivingMinutes)
 }
 
@@ -147,22 +153,3 @@ private fun goTo(plan: Plan, trip: Trip): Quote {
 
 private fun fmtRate(v: Double): String =
     if (v == v.toInt().toDouble()) v.toInt().toString() else v.toString()
-
-data class Preset(val name: String, val trip: Trip)
-
-private fun t(total: Int, drive: Int, km: Int, oneWay: Boolean = false, out: Boolean = false, weekend: Boolean = false) =
-    Trip(total, drive, km, oneWay, out, weekend, GoToCar.MINI, 0)
-
-val PRESETS = listOf(
-    Preset("Quick hop", t(10, 10, 3, oneWay = true)),
-    Preset("To a meeting", t(25, 25, 8, oneWay = true)),
-    Preset("Pick-up and back", t(30, 20, 6)),
-    Preset("Supermarket", t(60, 20, 8)),
-    Preset("Errand", t(60, 30, 20)),
-    Preset("Evening out", t(180, 40, 25)),
-    Preset("Out of town", t(180, 120, 60, out = true)),
-    Preset("Jerusalem", t(300, 150, 130, out = true)),
-    Preset("Day up north", t(720, 300, 300, out = true)),
-    Preset("Day trip", t(1440, 180, 100, out = true)),
-    Preset("Weekend away", t(2880, 300, 200, out = true, weekend = true)),
-)

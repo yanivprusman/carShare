@@ -132,13 +132,13 @@ fun <T> Segmented(
     options: List<T>,
     selected: T,
     label: (T) -> String,
-    sub: (T) -> String,
     accent: Color,
     tag: (T) -> String,
+    sub: ((T) -> String)? = null,
     onSelect: (T) -> Unit,
 ) {
     BoxWithConstraints(
-        Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp)).background(Raised).padding(4.dp),
+        Modifier.fillMaxWidth().height(if (sub != null) 56.dp else 46.dp).clip(RoundedCornerShape(16.dp)).background(Raised).padding(4.dp),
     ) {
         val w = maxWidth / options.size
         val idx = options.indexOf(selected).coerceAtLeast(0)
@@ -158,7 +158,7 @@ fun <T> Segmented(
                 ) {
                     androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(label(o), color = if (on) Ink else Muted, fontSize = 13.5.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium)
-                        Text(sub(o), color = if (on) accent else Faint, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        if (sub != null) Text(sub(o), color = if (on) accent else Faint, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }

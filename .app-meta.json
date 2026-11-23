@@ -1,0 +1,7 @@
+{
+  "description": "Compare AutoTel and GoTo hourly car-sharing costs for a trip",
+  "icon": "Car",
+  "sharedLibs": [
+    "android-feedback-lib"
+  ]
+}

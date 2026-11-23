@@ -1,5 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A car painted half AutoTel teal, half GoTo orange; the rear wheel is a clock (by the hour). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF" android:pathData="M38,38 h32 a6,6 0 0 1 6,6 v20 a6,6 0 0 1 -6,6 h-32 a6,6 0 0 1 -6,-6 v-20 a6,6 0 0 1 6,-6 z" />
-    <path android:fillColor="#B2DFDB" android:pathData="M46,48 h16 v4 h-16 z M46,56 h16 v4 h-16 z" />
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="1.12" android:scaleY="1.12" android:pivotX="54.5" android:pivotY="55">
+        <!-- soft shadow -->
+        <path android:fillColor="#000000" android:fillAlpha="0.28" android:pathData="M27,66.5 L27,58.5 Q27,54 31.5,53 L40,51 L47.5,43 Q49.5,41 53,41 L66,41 Q69.5,41 71.5,44 L76.5,51 Q82,52 82,57.5 L82,66.5 Z" />
+        <path android:pathData="M27,64 L27,56 Q27,51.5 31.5,50.5 L40,48.5 L47.5,40.5 Q49.5,38.5 53,38.5 L66,38.5 Q69.5,38.5 71.5,41.5 L76.5,48.5 Q82,49.5 82,55 L82,64 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="27" android:startY="0" android:endX="82" android:endY="0">
+                    <item android:offset="0" android:color="#FF2DD4BF" />
+                    <item android:offset="0.5" android:color="#FF0D9488" />
+                    <item android:offset="0.5" android:color="#FFEA580C" />
+                    <item android:offset="1" android:color="#FFFB923C" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:pathData="M27,64 L27,56 Q27,51.5 31.5,50.5 L40,48.5 L47.5,40.5 Q49.5,38.5 53,38.5 L66,38.5 Q69.5,38.5 71.5,41.5 L76.5,48.5 Q82,49.5 82,55 L82,64 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="0" android:startY="38" android:endX="0" android:endY="64">
+                    <item android:offset="0" android:color="#59FFFFFF" />
+                    <item android:offset="0.55" android:color="#00FFFFFF" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:fillColor="#0F172A" android:fillAlpha="0.55" android:pathData="M49.5,47.5 L53,42.5 Q54,41.5 55.5,41.5 L59.5,41.5 L59.5,47.5 Z M62.5,41.5 L66,41.5 Q67.5,41.5 68.5,43 L71.5,47.5 L62.5,47.5 Z" />
+        <path android:fillColor="#FF0F172A" android:pathData="M32.4,64 a7.6,7.6 0 1,0 15.2,0 a7.6,7.6 0 1,0 -15.2,0 Z" />
+        <path android:fillColor="#FF0F172A" android:pathData="M62.4,64 a7.6,7.6 0 1,0 15.2,0 a7.6,7.6 0 1,0 -15.2,0 Z" />
+        <path android:strokeColor="#FF94A3B8" android:strokeWidth="2.6" android:pathData="M34.8,64 a5.2,5.2 0 1,0 10.4,0 a5.2,5.2 0 1,0 -10.4,0 Z" />
+        <path android:strokeColor="#FF94A3B8" android:strokeWidth="2.6" android:pathData="M64.8,64 a5.2,5.2 0 1,0 10.4,0 a5.2,5.2 0 1,0 -10.4,0 Z" />
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.5" android:strokeLineCap="round" android:pathData="M70,64 L70,60.2 M70,64 L72.8,65.2" />
+    </group>
 </vector>

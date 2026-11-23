@@ -1,14 +1,24 @@
 package com.automatelinux.carShare
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -21,27 +31,34 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Landscape
+import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Terrain
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Weekend
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,40 +66,77 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import com.automatelinux.carShare.pricing.Company
 import com.automatelinux.carShare.pricing.GoToCar
 import com.automatelinux.carShare.pricing.PRESETS
+import com.automatelinux.carShare.pricing.Preset
 import com.automatelinux.carShare.pricing.Quote
 import com.automatelinux.carShare.pricing.Rates
 import com.automatelinux.carShare.pricing.Trip
 import com.automatelinux.carShare.pricing.quoteAll
+import com.automatelinux.carShare.ui.RoundButton
+import com.automatelinux.carShare.ui.Segmented
+import com.automatelinux.carShare.ui.Toggle
+import com.automatelinux.carShare.ui.TrackSlider
 import com.automatelinux.carShare.ui.theme.AppTheme
+import com.automatelinux.carShare.ui.theme.Card
+import com.automatelinux.carShare.ui.theme.Faint
 import com.automatelinux.carShare.ui.theme.Ink
+import com.automatelinux.carShare.ui.theme.Line
 import com.automatelinux.carShare.ui.theme.Muted
-import com.automatelinux.carShare.ui.theme.Page
-import com.automatelinux.carShare.ui.theme.Teal
-import com.automatelinux.carShare.ui.theme.TealSoft
 import com.automatelinux.carShare.ui.theme.Orange
-import com.automatelinux.carShare.ui.theme.OrangeSoft
-import com.automatelinux.carShare.ui.theme.Track
+import com.automatelinux.carShare.ui.theme.OrangeDeep
+import com.automatelinux.carShare.ui.theme.Page
+import com.automatelinux.carShare.ui.theme.Raised
+import com.automatelinux.carShare.ui.theme.Teal
+import com.automatelinux.carShare.ui.theme.TealDeep
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 private val DURATIONS = listOf(
     10, 15, 20, 25, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480, 600, 720,
     1440, 2160, 2880, 4320,
 )
+private const val MAX_KM = 600
+
+/** The current text style with tabular digits, so prices do not jitter while they animate. */
+@Composable
+private fun num(): TextStyle = LocalTextStyle.current.copy(fontFeatureSettings = "tnum")
+
+private val PRESET_ICONS: Map<String, ImageVector> = mapOf(
+    "Quick hop" to Icons.Filled.Bolt,
+    "To a meeting" to Icons.Filled.Work,
+    "Pick-up and back" to Icons.Filled.Inventory2,
+    "Supermarket" to Icons.Filled.ShoppingCart,
+    "Errand" to Icons.Filled.Assignment,
+    "Evening out" to Icons.Filled.Restaurant,
+    "Out of town" to Icons.Filled.Landscape,
+    "Jerusalem" to Icons.Filled.LocationCity,
+    "Day up north" to Icons.Filled.Terrain,
+    "Day trip" to Icons.Filled.WbSunny,
+    "Weekend away" to Icons.Filled.Weekend,
+)
 
 @Composable
-fun App() {
-    AppTheme {
+fun App(font: FontFamily) {
+    AppTheme(font) {
         Surface(modifier = Modifier.fillMaxSize(), color = Page) {
             CompareScreen()
         }
@@ -91,9 +145,10 @@ fun App() {
 
 @Composable
 private fun CompareScreen() {
-    var trip by remember { mutableStateOf(PRESETS[4].trip) }
-    var presetName by remember { mutableStateOf<String?>(PRESETS[4].name) }
-    fun edit(t: Trip) { trip = t; presetName = null }
+    val start = PRESETS.indexOfFirst { it.name == "Errand" }
+    var trip by remember { mutableStateOf(PRESETS[start].trip) }
+    var preset by remember { mutableStateOf<String?>(PRESETS[start].name) }
+    fun edit(t: Trip) { trip = t; preset = null }
 
     val quotes = quoteAll(trip)
 
@@ -102,362 +157,446 @@ private fun CompareScreen() {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(top = 8.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Header()
-        Verdict(quotes)
-        Presets(presetName) { p -> trip = p.trip.copy(goToCar = trip.goToCar, tripsPerMonth = trip.tripsPerMonth); presetName = p.name }
-        SectionTitle("Your trip")
-        TripCard(trip, ::edit)
-        SectionTitle("What it costs")
-        Results(quotes)
+        TopBar()
+        Duel(quotes, trip, Modifier.padding(horizontal = 16.dp))
+        Presets(preset) { p ->
+            trip = p.trip.copy(goToCar = trip.goToCar, tripsPerMonth = trip.tripsPerMonth)
+            preset = p.name
+        }
+        TripPanel(trip, ::edit, Modifier.padding(horizontal = 16.dp))
+        SectionTitle("Every plan, cheapest first")
+        AllPlans(quotes, Modifier.padding(horizontal = 16.dp))
         Footer()
-        Spacer(Modifier.height(8.dp))
     }
 }
 
+// ── Top ───────────────────────────────────────────────────────────────────
+
 @Composable
-private fun Header() {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF0F172A), Color(0xFF1E293B))))
-            .padding(20.dp),
-    ) {
-        Text("AutoTel or GoTo?", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "Set up a trip and see which hourly car costs less.",
-            color = Color(0xFFCBD5E1), fontSize = 14.sp,
-        )
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Badge("AutoTel", "Per minute · leave it anywhere in TLV", Teal, Modifier.weight(1f))
-            Badge("GoTo", "Per hour + km · return where you took it", Orange, Modifier.weight(1f))
+private fun TopBar() {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("Car Share", color = Ink, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Dot(Teal); Spacer(Modifier.width(5.dp))
+                Text("AutoTel", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("  vs  ", color = Faint, fontSize = 13.sp)
+                Dot(Orange); Spacer(Modifier.width(5.dp))
+                Text("GoTo", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("  ·  by the hour", color = Faint, fontSize = 13.sp)
+            }
         }
     }
 }
 
+/**
+ * The signature element: the two companies face off. Each side shows its cheaper plan;
+ * the winner lights up in its colour, the loser dims, and a verdict says by how much.
+ */
 @Composable
-private fun Badge(name: String, text: String, color: Color, modifier: Modifier) {
-    Column(
-        modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(color.copy(alpha = 0.22f))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(9.dp).clip(CircleShape).background(color))
-            Spacer(Modifier.width(6.dp))
-            Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        }
-        Spacer(Modifier.height(3.dp))
-        Text(text, color = Color(0xFFE2E8F0), fontSize = 12.sp, lineHeight = 16.sp)
-    }
-}
+private fun Duel(quotes: List<Quote>, trip: Trip, modifier: Modifier) {
+    fun bestOf(c: Company): Quote =
+        quotes.filter { it.plan.company == c }.filterIsInstance<Quote.Price>().minByOrNull { it.total }
+            ?: quotes.first { it.plan.company == c }
 
-@Composable
-private fun Verdict(quotes: List<Quote>) {
-    val priced = quotes.filterIsInstance<Quote.Price>().sortedBy { it.total }
-    val best = priced.first()
-    val bestOther = priced.firstOrNull { it.plan.company != best.plan.company }
-    val color = companyColor(best.plan.company)
-    val close = bestOther != null && abs(bestOther.total - best.total) / bestOther.total < 0.08
+    val at = bestOf(Company.AUTOTEL) as Quote.Price
+    val go = bestOf(Company.GOTO)
+    val goPrice = (go as? Quote.Price)?.total
+    val close = goPrice != null && abs(goPrice - at.total) / maxOf(goPrice, at.total) < 0.08
+    val winner = when {
+        goPrice == null -> Company.AUTOTEL
+        close -> null
+        goPrice < at.total -> Company.GOTO
+        else -> Company.AUTOTEL
+    }
 
     Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
-            .padding(18.dp)
-            .animateContentSize(),
+        modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Card)
+            .border(1.dp, Line, RoundedCornerShape(26.dp)).padding(10.dp),
     ) {
-        Text("CHEAPEST FOR THIS TRIP", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(best.plan.label, color = color, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-            Text(shekel(best.total), color = Ink, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+        Box {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Side("AutoTel", at.plan.short, at.total, null, Teal, TealDeep, winner, Company.AUTOTEL, Modifier.weight(1f))
+                Side(
+                    "GoTo", go.plan.short, goPrice,
+                    (go as? Quote.NotPossible)?.let { "One-way trips aren't possible" },
+                    Orange, OrangeDeep, winner, Company.GOTO, Modifier.weight(1f),
+                )
+            }
+            Box(
+                Modifier.align(Alignment.Center).size(38.dp).clip(CircleShape).background(Page)
+                    .border(1.dp, Line, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Text("vs", color = Muted, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
         }
-        Spacer(Modifier.height(6.dp))
-        val line = when {
-            bestOther == null -> "Only AutoTel can do this trip: GoTo cars must go back where you took them."
-            close -> "Close call: ${bestOther.plan.label} costs ${shekel(bestOther.total)}, only ${shekel(bestOther.total - best.total)} more."
-            else -> "${shekel(bestOther.total - best.total)} less than ${bestOther.plan.label} (${shekel(bestOther.total)})."
+        Spacer(Modifier.height(12.dp))
+        val verdict = when {
+            goPrice == null -> "Only AutoTel can do this trip"
+            winner == null -> "Too close to call: ${shekel(abs(goPrice - at.total))} apart"
+            winner == Company.GOTO -> "GoTo saves you ${shekel(at.total - goPrice)}"
+            else -> "AutoTel saves you ${shekel(goPrice - at.total)}"
         }
-        Text(line, color = Ink.copy(alpha = 0.8f), fontSize = 14.sp, lineHeight = 19.sp)
-    }
-}
-
-@Composable
-private fun Presets(selected: String?, onPick: (com.automatelinux.carShare.pricing.Preset) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        PRESETS.forEach { p ->
-            FilterChip(
-                selected = p.name == selected,
-                onClick = { onPick(p) },
-                label = { Text(p.name, fontWeight = FontWeight.SemiBold) },
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = Color.White,
-                    selectedContainerColor = Ink,
-                    selectedLabelColor = Color.White,
-                ),
-                modifier = Modifier.testTag("preset-${p.name.lowercase().replace(' ', '-')}"),
+        AnimatedContent(verdict, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) }, label = "verdict") { v ->
+            Text(
+                v, color = Ink, fontSize = 19.sp, fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
             )
         }
+        Text(
+            summary(trip), color = Faint, fontSize = 13.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp),
+        )
     }
 }
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text.uppercase(), color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp, modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+private fun Side(
+    name: String, plan: String, price: Double?, unavailable: String?,
+    accent: Color, deep: Color, winner: Company?, me: Company, modifier: Modifier,
+) {
+    val won = winner == me
+    val lost = winner != null && !won
+    val bg by animateColorAsState(
+        when { won -> deep.copy(alpha = 0.32f); lost -> Raised.copy(alpha = 0.5f); else -> Raised }, tween(300),
     )
+    val border by animateColorAsState(if (won) accent else Color.Transparent, tween(300))
+    val alpha by animateFloatAsState(if (lost) 0.55f else 1f, tween(300))
+    Column(
+        modifier.fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(bg)
+            .border(1.5.dp, border, RoundedCornerShape(20.dp)).padding(horizontal = 14.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Dot(accent.copy(alpha = alpha))
+            Spacer(Modifier.width(6.dp))
+            Text(name, color = Ink.copy(alpha = alpha), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            AnimatedVisibility(won, enter = fadeIn(), exit = fadeOut()) {
+                Text(
+                    "CHEAPER", color = Page, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(accent).padding(horizontal = 7.dp, vertical = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        if (price != null) {
+            AnimatedPrice(price, 36, Ink.copy(alpha = alpha))
+            Text(plan, color = Muted.copy(alpha = alpha), fontSize = 12.5.sp)
+        } else {
+            Text("—", color = Faint, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+            Text(unavailable ?: "", color = Muted, fontSize = 12.5.sp, lineHeight = 16.sp)
+        }
+    }
 }
 
+// ── Presets ───────────────────────────────────────────────────────────────
+
 @Composable
-private fun TripCard(trip: Trip, onChange: (Trip) -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
-            .padding(horizontal = 18.dp, vertical = 16.dp)
-            .animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+private fun Presets(selected: String?, onPick: (Preset) -> Unit) {
+    val state = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+    LaunchedEffect(selected) {
+        val i = PRESETS.indexOfFirst { it.name == selected }
+        if (i >= 0) state.animateScrollToItem((i - 1).coerceAtLeast(0))
+    }
+    LazyRow(
+        state = state,
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Total time
+        itemsIndexed(PRESETS) { _, p ->
+            val on = p.name == selected
+            val bg by animateColorAsState(if (on) Ink else Card, tween(180))
+            val fg by animateColorAsState(if (on) Page else Ink, tween(180))
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).background(bg)
+                    .border(1.dp, if (on) Ink else Line, RoundedCornerShape(50))
+                    .clickable { onPick(p) }
+                    .testTag("preset-${p.name.lowercase().replace(' ', '-')}")
+                    .padding(start = 12.dp, end = 15.dp, top = 9.dp, bottom = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(PRESET_ICONS.getValue(p.name), null, tint = if (on) Page else Muted, modifier = Modifier.size(17.dp))
+                Spacer(Modifier.width(7.dp))
+                Text(p.name, color = fg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+    }
+}
+
+// ── Trip controls ─────────────────────────────────────────────────────────
+
+@Composable
+private fun TripPanel(trip: Trip, onChange: (Trip) -> Unit, modifier: Modifier) {
+    val haptic = LocalHapticFeedback.current
+    fun change(t: Trip) {
+        if (t != trip) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onChange(t)
+    }
+    val ink = Brush.horizontalGradient(listOf(Color(0xFFCBD5E1), Color.White))
+
+    Column(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Card)
+            .border(1.dp, Line, RoundedCornerShape(26.dp)).padding(horizontal = 18.dp, vertical = 18.dp)
+            .animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        // How long
+        Readout("How long you have the car", duration(trip.totalMinutes))
         val idx = DURATIONS.indexOfFirst { it >= trip.totalMinutes }.let { if (it < 0) DURATIONS.lastIndex else it }
-        ValueRow("How long you have the car", duration(trip.totalMinutes))
-        Slider(
-            value = idx.toFloat(),
-            onValueChange = { v ->
-                val total = DURATIONS[v.roundToInt()]
-                onChange(trip.copy(totalMinutes = total, drivingMinutes = minOf(trip.drivingMinutes, total)))
+        TrackSlider(
+            position = idx / DURATIONS.lastIndex.toFloat(),
+            onPosition = { f ->
+                val total = DURATIONS[(f * DURATIONS.lastIndex).roundToInt()]
+                change(trip.copy(totalMinutes = total, drivingMinutes = minOf(trip.drivingMinutes, total)))
             },
-            valueRange = 0f..DURATIONS.lastIndex.toFloat(),
-            steps = DURATIONS.size - 2,
-            colors = sliderColors(),
-            modifier = Modifier.testTag("total-time"),
+            fill = ink, tag = "total-time",
         )
 
-        // Driving time — only matters for AutoTel's per-minute price inside Tel Aviv
-        AnimatedVisibility(!trip.leavesTelAviv) {
+        // Driving vs parked — only AutoTel's in-city per-minute price depends on it
+        AnimatedVisibility(!trip.leavesTelAviv, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column {
-                ValueRow(
-                    "Of that, driving",
-                    "${duration(trip.drivingMinutes)}  ·  parked ${duration(trip.parkedMinutes)}",
-                )
-                Slider(
-                    value = trip.drivingMinutes.toFloat(),
-                    onValueChange = { v -> onChange(trip.copy(drivingMinutes = ((v / 5).roundToInt() * 5).coerceIn(0, trip.totalMinutes))) },
-                    valueRange = 0f..trip.totalMinutes.toFloat().coerceAtLeast(5f),
-                    colors = sliderColors(),
-                    modifier = Modifier.testTag("driving-time"),
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Driving", color = Muted, fontSize = 13.sp)
+                        Text(duration(trip.drivingMinutes), color = Ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, style = num())
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Parked", color = Muted, fontSize = 13.sp)
+                        Text(duration(trip.parkedMinutes), color = Muted, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, style = num())
+                    }
+                }
+                TrackSlider(
+                    position = if (trip.totalMinutes == 0) 0f else trip.drivingMinutes / trip.totalMinutes.toFloat(),
+                    onPosition = { f ->
+                        val step = if (trip.totalMinutes <= 30) 1 else 5
+                        val m = ((f * trip.totalMinutes / step).roundToInt() * step).coerceIn(0, trip.totalMinutes)
+                        change(trip.copy(drivingMinutes = m))
+                    },
+                    fill = ink, rest = Color(0xFF334155), tag = "driving-time",
                 )
             }
         }
 
-        // Distance
+        // Distance — square-root scale so a few km are as easy to set as a few hundred
+        Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Distance", color = Muted, fontSize = 13.sp)
-                Text("${trip.km} km", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("${trip.km} km", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, style = num())
             }
-            Stepper("km", onMinus = { onChange(trip.copy(km = (trip.km - 1).coerceAtLeast(0))) },
-                onPlus = { onChange(trip.copy(km = (trip.km + 1).coerceAtMost(600))) })
+            RoundButton(Icons.Filled.Remove, "Less distance", "km-minus", enabled = trip.km > 0) { change(trip.copy(km = (trip.km - 1).coerceAtLeast(0))) }
+            Spacer(Modifier.width(10.dp))
+            RoundButton(Icons.Filled.Add, "More distance", "km-plus", enabled = trip.km < MAX_KM) { change(trip.copy(km = (trip.km + 1).coerceAtMost(MAX_KM))) }
         }
-        Slider(
-            value = trip.km.toFloat(),
-            onValueChange = { v -> onChange(trip.copy(km = v.roundToInt())) },
-            valueRange = 0f..600f,
-            colors = sliderColors(),
-            modifier = Modifier.testTag("distance"),
+        TrackSlider(
+            position = sqrt(trip.km / MAX_KM.toFloat()),
+            onPosition = { f -> change(trip.copy(km = (f * f * MAX_KM).roundToInt())) },
+            fill = ink, tag = "distance",
         )
 
-        Divider()
-        ToggleRow("One way", "Leave the car where you end up", trip.oneWay, "one-way") { onChange(trip.copy(oneWay = it)) }
-        ToggleRow("Leaves Tel Aviv", "AutoTel switches to its long-trip rate", trip.leavesTelAviv, "leaves-tel-aviv") { onChange(trip.copy(leavesTelAviv = it)) }
-        ToggleRow("Weekend", "Thursday night to Saturday night (GoTo +₪4/hour)", trip.weekend, "weekend") { onChange(trip.copy(weekend = it)) }
-        Divider()
+        Rule()
+        Switch("One way", "Leave the car where you end up", trip.oneWay, Teal, "one-way") { change(trip.copy(oneWay = it)) }
+        Switch("Leaves Tel Aviv", "AutoTel moves to its long-trip rate", trip.leavesTelAviv, Teal, "leaves-tel-aviv") { change(trip.copy(leavesTelAviv = it)) }
+        Switch("Weekend", "Thu night – Sat night · GoTo +₪4 an hour", trip.weekend, Orange, "weekend") { change(trip.copy(weekend = it)) }
+        Rule()
 
-        Text("GoTo car size", color = Muted, fontSize = 13.sp)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            GoToCar.entries.forEach { c ->
-                FilterChip(
-                    selected = trip.goToCar == c,
-                    onClick = { onChange(trip.copy(goToCar = c)) },
-                    label = { Text("${c.label} · ₪${c.driveHour.toInt()}/h") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = OrangeSoft,
-                        selectedLabelColor = Color(0xFF9A3412),
-                    ),
-                    modifier = Modifier.testTag("goto-car-${c.name.lowercase()}"),
-                )
-            }
-        }
-        Divider()
+        Text("GoTo car", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
+        Segmented(
+            options = GoToCar.entries.toList(),
+            selected = trip.goToCar,
+            label = { it.label },
+            sub = { "₪${it.driveHour.toInt()}/h" },
+            accent = Orange,
+            tag = { "goto-car-${it.name.lowercase()}" },
+            onSelect = { change(trip.copy(goToCar = it)) },
+        )
 
+        Rule()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Monthly fee", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Monthly fee", color = Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 Text(
-                    if (trip.tripsPerMonth == 0) "Left out of the price"
-                    else "Split over ${trip.tripsPerMonth} trip${if (trip.tripsPerMonth > 1) "s" else ""} a month",
+                    if (trip.tripsPerMonth == 0) "Not counted"
+                    else "Shared over ${trip.tripsPerMonth} trip${if (trip.tripsPerMonth > 1) "s" else ""} a month",
                     color = Muted, fontSize = 12.5.sp,
                 )
             }
-            Stepper("trips per month",
-                onMinus = { onChange(trip.copy(tripsPerMonth = (trip.tripsPerMonth - 1).coerceAtLeast(0))) },
-                onPlus = { onChange(trip.copy(tripsPerMonth = (trip.tripsPerMonth + 1).coerceAtMost(60))) })
+            RoundButton(Icons.Filled.Remove, "Fewer trips a month", "trips-minus", enabled = trip.tripsPerMonth > 0) {
+                change(trip.copy(tripsPerMonth = (trip.tripsPerMonth - 1).coerceAtLeast(0)))
+            }
+            Text(
+                "${trip.tripsPerMonth}", color = Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, style = num(),
+                textAlign = TextAlign.Center, modifier = Modifier.width(36.dp),
+            )
+            RoundButton(Icons.Filled.Add, "More trips a month", "trips-plus", enabled = trip.tripsPerMonth < 60) {
+                change(trip.copy(tripsPerMonth = (trip.tripsPerMonth + 1).coerceAtMost(60)))
+            }
         }
     }
 }
 
 @Composable
-private fun Results(quotes: List<Quote>) {
+private fun Readout(label: String, value: String) {
+    Column {
+        Text(label, color = Muted, fontSize = 13.sp)
+        Text(value, color = Ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, style = num())
+    }
+}
+
+@Composable
+private fun Switch(title: String, sub: String, checked: Boolean, accent: Color, tag: String, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onChange(!checked) }.padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(sub, color = Muted, fontSize = 12.5.sp)
+        }
+        Toggle(checked, accent, tag, onChange)
+    }
+}
+
+// ── All plans ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun AllPlans(quotes: List<Quote>, modifier: Modifier) {
     val priced = quotes.filterIsInstance<Quote.Price>()
     val max = priced.maxOf { it.total }.coerceAtLeast(1.0)
     val cheapest = priced.minOf { it.total }
     val ordered = priced.sortedBy { it.total } + quotes.filterIsInstance<Quote.NotPossible>()
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ordered.forEach { q -> ResultCard(q, max, q is Quote.Price && q.total == cheapest) }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ordered.forEach { q -> PlanCard(q, max, q is Quote.Price && q.total == cheapest) }
     }
 }
 
 @Composable
-private fun ResultCard(q: Quote, max: Double, isBest: Boolean) {
+private fun PlanCard(q: Quote, max: Double, best: Boolean) {
     var open by remember(q.plan) { mutableStateOf(false) }
-    val color = companyColor(q.plan.company)
+    val accent = if (q.plan.company == Company.AUTOTEL) Teal else Orange
+    val deep = if (q.plan.company == Company.AUTOTEL) TealDeep else OrangeDeep
+    val turn by animateFloatAsState(if (open) 180f else 0f, tween(220))
     Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White)
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Card)
+            .border(1.dp, if (best) accent.copy(alpha = 0.6f) else Line, RoundedCornerShape(20.dp))
             .clickable(enabled = q is Quote.Price) { open = !open }
-            .testTag("result-${q.plan.name.lowercase()}")
+            .testTag("plan-${q.plan.name.lowercase()}")
             .padding(16.dp)
             .animateContentSize(),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+            Dot(accent)
             Spacer(Modifier.width(8.dp))
-            Text(q.plan.label, color = Ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            if (isBest) {
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "Cheapest", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = if (q.plan.company == Company.AUTOTEL) Color(0xFF115E59) else Color(0xFF9A3412),
-                    modifier = Modifier.clip(RoundedCornerShape(50))
-                        .background(if (q.plan.company == Company.AUTOTEL) TealSoft else OrangeSoft)
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                )
+            Column(Modifier.weight(1f)) {
+                Text(q.plan.label, color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(q.plan.note, color = Faint, fontSize = 12.sp)
             }
-            Spacer(Modifier.weight(1f))
             when (q) {
                 is Quote.Price -> {
-                    Text(shekel(q.total), color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                    Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = Muted)
+                    AnimatedPrice(q.total, 22, Ink)
+                    Icon(Icons.Filled.ExpandMore, if (open) "Hide breakdown" else "Show breakdown", tint = Muted, modifier = Modifier.rotate(turn))
                 }
-                is Quote.NotPossible -> Text("—", color = Muted, fontSize = 20.sp)
+                is Quote.NotPossible -> Text("—", color = Faint, fontSize = 22.sp)
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         when (q) {
             is Quote.Price -> {
-                val frac by animateFloatAsState((q.total / max).toFloat().coerceIn(0.03f, 1f))
-                Box(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).background(Track)) {
+                val frac by animateFloatAsState((q.total / max).toFloat().coerceIn(0.03f, 1f), tween(450))
+                Box(Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(Raised)) {
                     Box(
-                        Modifier.fillMaxWidth(frac).fillMaxHeight().clip(RoundedCornerShape(7.dp))
-                            .background(Brush.horizontalGradient(listOf(color.copy(alpha = 0.75f), color))),
+                        Modifier.fillMaxWidth(frac).fillMaxHeight().clip(CircleShape)
+                            .background(Brush.horizontalGradient(listOf(deep, accent))),
                     )
                 }
-                AnimatedVisibility(open) {
-                    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(q.plan.note, color = Muted, fontSize = 12.5.sp)
-                        q.lines.forEach { (label, amount) ->
-                            Row {
-                                Text(label, color = Ink, fontSize = 13.5.sp, modifier = Modifier.weight(1f))
-                                Text(shekel(amount, decimals = true), color = Ink, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
+                AnimatedVisibility(open, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                    Receipt(q)
                 }
             }
-            is Quote.NotPossible -> Text(q.reason, color = Muted, fontSize = 13.sp, fontStyle = FontStyle.Italic)
+            is Quote.NotPossible -> Text(q.reason, color = Muted, fontSize = 13.sp)
         }
+    }
+}
+
+/** The breakdown, set like a till receipt: dotted leaders, a rule, the total. */
+@Composable
+private fun Receipt(q: Quote.Price) {
+    Column(
+        Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Page)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        q.lines.forEach { (label, amount) ->
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(label, color = Muted, fontSize = 13.5.sp)
+                Leader(Modifier.weight(1f).padding(horizontal = 6.dp))
+                Text(shekel(amount, decimals = true), color = Ink, fontSize = 13.5.sp, style = num())
+            }
+        }
+        Canvas(Modifier.fillMaxWidth().height(1.dp)) {
+            drawLine(Line, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)))
+        }
+        Row {
+            Text("Total", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(shekel(q.total, decimals = true), color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold, style = num())
+        }
+    }
+}
+
+@Composable
+private fun Leader(modifier: Modifier) {
+    Canvas(modifier.height(10.dp)) {
+        val y = size.height - 2f
+        drawLine(Faint.copy(alpha = 0.6f), Offset(0f, y), Offset(size.width, y), strokeWidth = 2f,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 6f)))
     }
 }
 
 @Composable
 private fun Footer() {
     Text(
-        "Fuel and insurance are included in both. Out of Tel Aviv, AutoTel charges its long-trip rate: " +
-            "₪99 for 3 hours, then ₪20 an hour, plus ₪1.2/km. GoTo bills whole hours, at least one, " +
-            "and a 24-hour block never costs more than its day rate. Prices: ${Rates.AUTOTEL_SOURCE}; " +
-            "${Rates.GOTO_SOURCE}. The app shows the price that applies when you book.",
-        color = Muted, fontSize = 11.5.sp, lineHeight = 16.sp,
-        modifier = Modifier.padding(horizontal = 4.dp),
+        "Fuel and insurance are included with both. Leaving Tel Aviv, AutoTel charges its long-trip rate: " +
+            "₪99 for 3 hours, then ₪20 an hour, plus ₪1.2/km. GoTo bills whole hours, at least one, and " +
+            "never more than its day rate for each 24 hours. ${Rates.AUTOTEL_SOURCE} · ${Rates.GOTO_SOURCE}. " +
+            "The company's app shows the price that applies when you book.",
+        color = Faint, fontSize = 11.5.sp, lineHeight = 16.sp,
+        modifier = Modifier.padding(horizontal = 22.dp),
     )
 }
 
 // ── small pieces ──────────────────────────────────────────────────────────
 
 @Composable
-private fun ValueRow(label: String, value: String) {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(label, color = Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(value, color = Ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-    }
+private fun SectionTitle(text: String) {
+    Text(text, color = Muted, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 22.dp, top = 4.dp))
 }
 
 @Composable
-private fun ToggleRow(title: String, sub: String, checked: Boolean, tag: String, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onChange(!checked) }.padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Text(sub, color = Muted, fontSize = 12.5.sp)
-        }
-        Switch(
-            checked = checked, onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = Ink),
-            modifier = Modifier.testTag(tag),
-        )
-    }
+private fun Rule() {
+    Box(Modifier.fillMaxWidth().padding(vertical = 8.dp).height(1.dp).background(Line))
 }
 
 @Composable
-private fun Stepper(what: String, onMinus: () -> Unit, onPlus: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilledTonalIconButton(onClick = onMinus, modifier = Modifier.testTag("$what-minus".replace(' ', '-'))) {
-            Icon(Icons.Filled.Remove, "Fewer $what")
-        }
-        FilledTonalIconButton(onClick = onPlus, modifier = Modifier.testTag("$what-plus".replace(' ', '-'))) {
-            Icon(Icons.Filled.Add, "More $what")
-        }
-    }
+private fun Dot(c: Color) {
+    Box(Modifier.size(9.dp).clip(CircleShape).background(c))
 }
 
 @Composable
-private fun Divider() {
-    Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(Track))
+private fun AnimatedPrice(value: Double, size: Int, color: Color) {
+    val shown by animateFloatAsState(value.toFloat(), tween(450))
+    Text(shekel(shown.toDouble()), color = color, fontSize = size.sp, fontWeight = FontWeight.Bold, style = num())
 }
 
-@Composable
-private fun sliderColors() = SliderDefaults.colors(
-    thumbColor = Ink, activeTrackColor = Ink, inactiveTrackColor = Track,
-    activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
-)
-
-private fun companyColor(c: Company) = if (c == Company.AUTOTEL) Teal else Orange
+private fun summary(t: Trip): String = buildList {
+    add(duration(t.totalMinutes))
+    add("${t.km} km")
+    add(if (t.oneWay) "one way" else "round trip")
+    add(if (t.leavesTelAviv) "out of Tel Aviv" else "in Tel Aviv")
+    if (t.weekend) add("weekend")
+}.joinToString("  ·  ")
 
 private fun duration(min: Int): String = when {
     min < 60 -> "$min min"

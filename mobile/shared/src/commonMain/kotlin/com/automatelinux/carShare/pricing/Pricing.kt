@@ -36,11 +36,13 @@ enum class Plan(
     val label: String,
     val monthlyFee: Double,
     val note: String,
+    /** How the face-off names the plan under the company name. */
+    val short: String,
 ) {
-    AT_HIGH(Company.AUTOTEL, "AutoTel ₪40", 40.0, "High Gear: ₪1.5/min driving, ₪0.75/min parked"),
-    AT_LOW(Company.AUTOTEL, "AutoTel ₪10", 10.0, "Low Gear: ₪2/min driving, ₪1/min parked"),
-    GO_DRIVE(Company.GOTO, "GoTo DRIVE", 50.0, "Lower hourly rate, ₪50 a month"),
-    GO_LITE(Company.GOTO, "GoTo LITE", 20.0, "Higher hourly rate, ₪20 a month"),
+    AT_HIGH(Company.AUTOTEL, "AutoTel ₪40", 40.0, "High Gear: ₪1.5/min driving, ₪0.75/min parked", "on the ₪40 plan"),
+    AT_LOW(Company.AUTOTEL, "AutoTel ₪10", 10.0, "Low Gear: ₪2/min driving, ₪1/min parked", "on the ₪10 plan"),
+    GO_DRIVE(Company.GOTO, "GoTo DRIVE", 50.0, "Lower hourly rate, ₪50 a month", "on the DRIVE plan"),
+    GO_LITE(Company.GOTO, "GoTo LITE", 20.0, "Higher hourly rate, ₪20 a month", "on the LITE plan"),
 }
 
 enum class GoToCar(
